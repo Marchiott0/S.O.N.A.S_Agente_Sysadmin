@@ -1,0 +1,8 @@
+# Ignorar arquivos de chaves e tokens
+credentials.json
+token.json
+status_api.json
+
+# Ignorar pastas criadas pelo Python e pelo próprio SONAS
+__pycache__/
+output_sonas/
