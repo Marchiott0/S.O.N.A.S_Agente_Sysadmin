@@ -23,8 +23,7 @@ def habilitar_ansi_windows():
             import ctypes
             kernel32 = ctypes.windll.kernel32
             kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
-        except Exception:
-            pass
+        except Exception: pass
 
 BANNER = f"""{Cor.CIANO}{Cor.BOLD}
   ╔════════════════════════════════════════════════════════════╗
@@ -35,9 +34,8 @@ BANNER = f"""{Cor.CIANO}{Cor.BOLD}
   ║        ███████  ██████  ██   ██  ██  ██  ███████           ║
   ║                                                            ║
   ║  Sistema de Orquestração Nativa para Agentes e Scripts     ║
-  ║                        v6.4.1                              ║
-  ╚════════════════════════════════════════════════════════════╝
-{Cor.RESET}"""
+  ║                        v6.4.3                              ║
+  ╚════════════════════════════════════════════════════════════╝{Cor.RESET}"""
 
 def descobrir_area_de_trabalho():
     perfil = os.environ.get("USERPROFILE", os.path.expanduser("~"))
@@ -48,40 +46,34 @@ def descobrir_area_de_trabalho():
         os.path.join(perfil, "Desktop"),
     ]
     for caminho in candidatos:
-        if os.path.isdir(caminho):
-            return caminho
-    fallback = str(Path(__file__).parent.parent / "output_sonas")
-    os.makedirs(fallback, exist_ok=True)
-    return fallback
+        if os.path.isdir(caminho): return caminho
+    return str(Path(__file__).parent.parent / "output_sonas")
 
 def executar_python(codigo, area_de_trabalho):
+    # Garante que o código esteja limpo para execução
+    codigo_limpo = codigo.replace('\r', '').strip()
     namespace_global = {
-        "__builtins__": __builtins__,
-        "AREA_DE_TRABALHO": area_de_trabalho,
-        "os": os,
+        "__builtins__": __builtins__, 
+        "AREA_DE_TRABALHO": area_de_trabalho, 
+        "os": os, 
         "Path": Path,
+        "random": __import__('random'),
+        "datetime": __import__('datetime')
     }
     stdout_buf = io.StringIO()
-    stderr_buf = io.StringIO()
     try:
-        with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
-            exec(codigo, namespace_global)
+        with contextlib.redirect_stdout(stdout_buf):
+            exec(codigo_limpo, namespace_global)
         saida = stdout_buf.getvalue()
-        erros = stderr_buf.getvalue()
-        if erros:
-            return f"[STDOUT]\n{saida}\n[STDERR]\n{erros}".strip()
-        return saida.strip() if saida.strip() else "✔ Código executado com sucesso (sem output)."
+        return saida.strip() if saida else "✔ Execução finalizada com sucesso."
     except Exception:
-        return f"[ERRO DE EXECUÇÃO]\n{traceback.format_exc()}"
+        return f"[ERRO NO SCRIPT]\n{traceback.format_exc()}"
 
-def imprimir_separador(char="─", largura=60, cor=Cor.CINZA):
+def imprimir_separador(char="─", largura=64, cor=Cor.CINZA):
     print(f"{cor}{char * largura}{Cor.RESET}")
 
 def imprimir_badge_backend(backend):
-    if backend == "Groq":
-        icone, cor = "☁", Cor.AZUL
-    else:
-        icone, cor = "⚙", Cor.AMARELO
+    icone, cor = ("☁", Cor.AZUL) if backend == "Groq" else ("⚙", Cor.AMARELO)
     print(f"  {cor}{icone} Backend: {backend}{Cor.RESET}")
 
 def exibir_codigo(codigo):
