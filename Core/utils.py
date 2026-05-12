@@ -3,6 +3,7 @@ import sys
 import io
 import contextlib
 import traceback
+import subprocess
 from pathlib import Path
 
 class Cor:
@@ -25,6 +26,7 @@ def habilitar_ansi_windows():
             kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
         except Exception: pass
 
+# --- BANNER ATUALIZADO PARA A v7.0 CLOUD ---
 BANNER = f"""{Cor.CIANO}{Cor.BOLD}
   ╔════════════════════════════════════════════════════════════╗
   ║        ███████  ██████  ███  ██   █████  ███████           ║
@@ -34,7 +36,7 @@ BANNER = f"""{Cor.CIANO}{Cor.BOLD}
   ║        ███████  ██████  ██   ██  ██  ██  ███████           ║
   ║                                                            ║
   ║  Sistema de Orquestração Nativa para Agentes e Scripts     ║
-  ║                        v6.4.3                              ║
+  ║               v7.0 - Cloud-Agent Architecture              ║
   ╚════════════════════════════════════════════════════════════╝{Cor.RESET}"""
 
 def descobrir_area_de_trabalho():
@@ -49,32 +51,56 @@ def descobrir_area_de_trabalho():
         if os.path.isdir(caminho): return caminho
     return str(Path(__file__).parent.parent / "output_sonas")
 
-def executar_python(codigo, area_de_trabalho):
-    # Garante que o código esteja limpo para execução
+# --- SISTEMA DE EXECUÇÃO COM AUTO-INSTALADOR (SELF-HEALING) ---
+def executar_python(codigo, area_de_trabalho, skills_dir):
+    if str(skills_dir) not in sys.path:
+        sys.path.append(str(skills_dir))
+        
     codigo_limpo = codigo.replace('\r', '').strip()
     namespace_global = {
         "__builtins__": __builtins__, 
         "AREA_DE_TRABALHO": area_de_trabalho, 
-        "os": os, 
-        "Path": Path,
-        "random": __import__('random'),
-        "datetime": __import__('datetime')
+        "SKILLS_DIR": str(skills_dir),
+        "os": os, "Path": Path, "sys": sys,
+        "random": __import__('random'), "datetime": __import__('datetime')
     }
-    stdout_buf = io.StringIO()
-    try:
-        with contextlib.redirect_stdout(stdout_buf):
-            exec(codigo_limpo, namespace_global)
-        saida = stdout_buf.getvalue()
-        return saida.strip() if saida else "✔ Execução finalizada com sucesso."
-    except Exception:
-        return f"[ERRO NO SCRIPT]\n{traceback.format_exc()}"
+    
+    max_tentativas = 3
+    for tentativa in range(max_tentativas):
+        stdout_buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(stdout_buf):
+                exec(codigo_limpo, namespace_global)
+            saida = stdout_buf.getvalue()
+            return saida.strip() if saida else "✔ Execução finalizada com sucesso."
+        
+        except ModuleNotFoundError as e:
+            nome_pacote = e.name
+            print(f"\n  {Cor.AMARELO}📦 Dependência Ausente: Baixando biblioteca '{nome_pacote}' automaticamente...{Cor.RESET}")
+            # Aciona o PIP silenciosamente no background
+            resultado = subprocess.run(
+                [sys.executable, "-m", "pip", "install", nome_pacote], 
+                capture_output=True, text=True
+            )
+            if resultado.returncode == 0:
+                print(f"  {Cor.VERDE}✔ '{nome_pacote}' instalado! Reiniciando a execução...{Cor.RESET}\n")
+                continue # Volta para o começo do loop e executa o código do agente de novo
+            else:
+                return f"[ERRO FATAL DE PIP]\nO sistema tentou instalar '{nome_pacote}', mas o pacote não existe com este nome exato no repositório."
+        
+        except Exception:
+            return f"[ERRO NO SCRIPT]\n{traceback.format_exc()}"
+            
+    return "[ERRO] Limite de tentativas de auto-instalação excedido."
 
+# --- FUNÇÕES DE INTERFACE DO TERMINAL ---
 def imprimir_separador(char="─", largura=64, cor=Cor.CINZA):
     print(f"{cor}{char * largura}{Cor.RESET}")
 
 def imprimir_badge_backend(backend):
-    icone, cor = ("☁", Cor.AZUL) if backend == "Groq" else ("⚙", Cor.AMARELO)
-    print(f"  {cor}{icone} Backend: {backend}{Cor.RESET}")
+    icone = "🧠" if "Gemini" in backend else "⚡" if "Groq" in backend else "⚙️"
+    cor = Cor.AZUL if "Gemini" in backend or "Groq" in backend else Cor.AMARELO
+    print(f"  {cor}{icone} Processado via: {backend}{Cor.RESET}")
 
 def exibir_codigo(codigo):
     linhas = codigo.strip().splitlines()

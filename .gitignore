@@ -2,10 +2,13 @@
 credentials.json
 token.json
 status_api.json
+firebase_credentials.json
 
 # Ignorar pastas criadas pelo Python e pelo próprio SONAS
 __pycache__/
+*.pyc
 output_sonas/
 
-# Ignorar o cofre de senhas
+# Ignorar o cofre de senhas e dados locais
 .env
+memoria.json
